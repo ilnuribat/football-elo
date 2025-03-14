@@ -4,6 +4,9 @@
   "main": "src/index.js",
   "type": "module",
   "scripts": {
+    "migration:up": "npx knex migrate:up",
+    "migration:down": "npx knex migrate:down",
+    "migration:latest": "npx knex migrate:latest"
   },
   "keywords": [],
   "author": "Ilnur Ibatullin",
@@ -15,6 +18,7 @@
     "eslint-plugin-import": "^2.31.0"
   },
   "dependencies": {
+    "dotenv": "^16.4.7",
     "knex": "^3.1.0",
     "pg": "^8.13.3"
   }

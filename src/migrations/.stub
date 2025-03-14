@@ -1,0 +1,7 @@
+export async function up(knex) {
+  await knex.raw('select 1 + 1');
+}
+
+export async function down(knex) {
+  await knex.raw('select 1 + 1');
+}

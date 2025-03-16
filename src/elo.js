@@ -17,6 +17,14 @@ export async function elo() {
   const matches = await knex('matches').orderBy('date');
   const players = await knex('players');
 
+  const matchPlayers = new Map();
+
+  for (const match of matches) {
+    for (const player of players) {
+      matchPlayers.set(`${match.id}:${player.id}`, {});
+    }
+  }
+
 
   const INITIAL_ELO = 1500;
   const MINIMUM_MATCHES = 5;
@@ -47,14 +55,9 @@ export async function elo() {
     const teamA = results.filter((r) => r.team === 'a');
     const teamB = results.filter((r) => r.team === 'b');
 
-    // console.log('results', results.slice(0, 3));
-    // console.log('rows', rows.slice(0, 3));
-    // await new Promise(() => {});
-
     const goalDiff = results
       .map((r) => {
         const goals = r.team === 'a' ? r.goals : -r.goals;
-
         return goals;
       })
       .reduce((prev, curr) => prev + curr, 0);
@@ -108,13 +111,19 @@ export async function elo() {
       if (prev.matches < MINIMUM_MATCHES) {
         K += 10;
       }
-
       const EloDiffTeamA = K * (SforTeamA - EforTeamA);
+      matchPlayers.set(`${match.id}:${p.player_id}`, {
+        ...p,
+        prevElo: prev.rating,
+        newElo: prev.rating + EloDiffTeamA,
+      });
       playerIds.set(p.player_id, {
         ...playerIds.get(p.player_id),
         rating: prev.rating + EloDiffTeamA,
         matches: prev.matches + 1,
-        wins: prev.wins + 1,
+        wins: prev.wins + (p.team === p.result ? 1 : 0),
+        loses: prev.loses + (p.result !== 'ab' && p.team !== p.result ? 1 : 0),
+        draws: prev.draws + (p.result === 'ab' ? 1 : 0),
         goals: prev.goals + (p.season === '2025' ? p.goals : 0),
       });
     });
@@ -126,11 +135,18 @@ export async function elo() {
         K += 10;
       }
       const EloDiffTeamB = K * (SforTeamB - EforTeamB);
+      matchPlayers.set(`${match.id}:${p.player_id}`, {
+        ...p,
+        prevElo: prev.rating,
+        newElo: prev.rating + EloDiffTeamB,
+      });
       playerIds.set(p.player_id, {
         ...playerIds.get(p.player_id),
         rating: prev.rating + EloDiffTeamB,
         matches: prev.matches + 1,
-        wins: prev.wins,
+        wins: prev.wins + (p.team === p.result ? 1 : 0),
+        loses: prev.loses + (p.result !== 'ab' && p.team !== p.result ? 1 : 0),
+        draws: prev.draws + (p.result === 'ab' ? 1 : 0),
         goals: prev.goals + (p.season === '2025' ? p.goals : 0),
       });
     });
@@ -152,14 +168,14 @@ export async function elo() {
       // loses: info.matches - info.wins,
       goals: info.goals,
     }))
-  // .filter((p) => p.matches >= 3)
-    .filter((p) => [...teamA, ...teamB].includes(p.id))
-    .sort((a, b) => a.team - b.team || b.rating - a.rating);
+    .filter((p) => p.matches >= 3)
+  // .filter((p) => [...teamA, ...teamB].includes(p.id))
+    .sort((a, b) => b.rating - a.rating);
 
-  console.log(['name', 'team', 'rating', 'matches', 'wins'].join('\t'));
-  eloRating.forEach((e) => {
-    console.log([e.name, e.team, e.rating, e.matches, e.wins, e.loses].join('\t'));
-  });
+  // console.log(['name', 'team', 'rating', 'matches', 'wins'].join('\t'));
+  // eloRating.forEach((e) => {
+  //   console.log([e.name, e.team, e.rating, e.matches, e.wins, e.loses].join('\t'));
+  // });
   console.table(eloRating);
 
   const { teamA: teamARating, teamB: teamBRating } = eloRating.reduce((prev, curr) => {

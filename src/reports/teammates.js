@@ -14,7 +14,8 @@ async function main() {
       min(name1) as name1,
       max(name2) as name2,
       min(plays) as plays,
-      min(wins) as wins
+      min(wins) as wins,
+      min(draws) as draws
     from (
       select 
         min(p1.name) as name1,
@@ -22,12 +23,20 @@ async function main() {
         min(p2.name) as name2,
         min(p2.id) as p2_id,
         count(*) as plays,
-        sum(r1.result) as wins,
+        sum(
+          case
+            when r1.team::text = m.result::text then 1
+            else 0
+          end
+        ) as wins,
+        sum(
+          case when m.result = 'ab' then 1 else 0 end
+        ) as draws,
         min(least(p1.id, p2.id)) as least,
         min(greatest(p1.id, p2.id)) as greatest
       from results r1
       inner join results r2
-        on r1.result = r2.result and r1.match_id = r2.match_id and r1.player_id <> r2.player_id
+        on r1.team = r2.team and r1.match_id = r2.match_id and r1.player_id <> r2.player_id
       inner join players p1
         on r1.player_id = p1.id
       inner join players p2
@@ -44,10 +53,10 @@ async function main() {
       group by r1.player_id, r2.player_id
     ) p
     group by least, greatest
-    order by plays desc, wins desc
+    order by plays desc
   `);
 
-  console.table(rows);
+  console.table(rows.slice(0, 20));
 }
 
 main().catch((e) => {
